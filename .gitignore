@@ -1,0 +1,7 @@
+# packages, build output, secrets
+node_modules
+.next
+.env
+.env.local
+next-env.d.ts
+tsconfig.tsbuildinfo
