@@ -1,0 +1,41 @@
+# Name shown in the GitHub "Actions" tab
+name: CI
+
+# WHEN to run: on every push to any branch, and on every pull request
+on:
+  push:
+  pull_request:
+
+jobs:
+  checks:
+    # The fresh computer GitHub gives us (Linux)
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Download your code onto that computer
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Install Node.js (same major version as yours)
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm   # re-use downloaded packages, makes runs faster
+
+      # 3. Install packages exactly as in package-lock.json
+      - name: Install dependencies
+        run: npm ci
+
+      # 4. The same checks you ran by hand
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
