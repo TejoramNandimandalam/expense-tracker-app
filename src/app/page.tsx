@@ -59,7 +59,7 @@ export default function Home() {
   // data-testid = fixed names your Playwright tests will use to find elements
   return (
     <main style={{ maxWidth: 600, margin: "40px auto", fontFamily: "sans-serif" }}>
-      <h1>Expense Tracker</h1>
+      <h1>Expense Tracker v1</h1>
 
       <form onSubmit={addExpense} data-testid="expense-form">
         <input data-testid="title-input" placeholder="Title" value={title}
