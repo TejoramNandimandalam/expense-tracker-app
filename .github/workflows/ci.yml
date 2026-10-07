@@ -12,11 +12,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Download your code onto that computer
+      # 1. Download the code onto that computer
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Install Node.js (same major version as yours)
+      # 2. Install Node.js (same major version)
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 4. The same checks you ran by hand
+      # 4. The checks before deploy: lint, typecheck, unit tests, build
       - name: Lint
         run: npm run lint
 
