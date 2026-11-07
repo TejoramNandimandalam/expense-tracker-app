@@ -61,3 +61,31 @@ export function filterByCategory(expenses: Expense[], category: string): Expense
   if (category === "All") return expenses;
   return expenses.filter((x) => x.category === category);
 }
+
+// ---------- Release 3 ----------
+
+export type SortOption = "date-desc" | "amount-desc" | "amount-asc";
+
+// Keep expenses whose title contains the text (ignores upper/lower case)
+export function searchExpenses(expenses: Expense[], text: string): Expense[] {
+  const q = text.trim().toLowerCase();
+  if (!q) return expenses;
+  return expenses.filter((x) => x.title.toLowerCase().includes(q));
+}
+
+// Return a new sorted list (the original list is not changed)
+export function sortExpenses(expenses: Expense[], sort: SortOption): Expense[] {
+  const copy = [...expenses];
+  if (sort === "amount-desc") return copy.sort((a, b) => b.amount - a.amount);
+  if (sort === "amount-asc") return copy.sort((a, b) => a.amount - b.amount);
+  // date-desc: newest first (ISO dates sort correctly as text)
+  return copy.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id));
+}
+
+// Total and count per category, e.g. [{category:"Food", total:300, count:2}]
+export function summarizeByCategory(expenses: Expense[]) {
+  return CATEGORIES.map((category) => {
+    const rows = expenses.filter((x) => x.category === category);
+    return { category, total: calculateTotal(rows), count: rows.length };
+  }).filter((s) => s.count > 0);
+}

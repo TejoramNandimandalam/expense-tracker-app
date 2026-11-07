@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculateTotal, hasAllFields, validateExpense, filterByCategory } from "./expenses";
+import { calculateTotal, hasAllFields, validateExpense, filterByCategory, searchExpenses, sortExpenses, summarizeByCategory } from "./expenses";
 
 // describe = a group of tests, it = one test, expect = the check
 describe("calculateTotal", () => {
@@ -60,4 +60,28 @@ describe("calculateTotal rounding", () => {
     ];
     expect(calculateTotal(list)).toBe(0.3);
   });
+});
+
+describe("release 3 helpers", () => {
+  const list = [
+    { id: 1, title: "Lunch", amount: 250, category: "Food", date: "2026-10-05" },
+    { id: 2, title: "Bus ticket", amount: 50, category: "Travel", date: "2026-10-07" },
+    { id: 3, title: "Dinner", amount: 400, category: "Food", date: "2026-10-06" },
+  ];
+  it("search ignores case", () => expect(searchExpenses(list, "LUNCH")).toEqual([list[0]]));
+  it("search with empty text returns all", () => expect(searchExpenses(list, "  ")).toHaveLength(3));
+  it("search with no match returns nothing", () => expect(searchExpenses(list, "zzz")).toEqual([]));
+  it("sorts newest date first", () => expect(sortExpenses(list, "date-desc").map((x) => x.id)).toEqual([2, 3, 1]));
+  it("sorts amount high to low", () => expect(sortExpenses(list, "amount-desc").map((x) => x.id)).toEqual([3, 1, 2]));
+  it("sorts amount low to high", () => expect(sortExpenses(list, "amount-asc").map((x) => x.id)).toEqual([2, 1, 3]));
+  it("sorting does not change the original list", () => {
+    sortExpenses(list, "amount-desc");
+    expect(list.map((x) => x.id)).toEqual([1, 2, 3]);
+  });
+  it("summarizes totals per category", () =>
+    expect(summarizeByCategory(list)).toEqual([
+      { category: "Food", total: 650, count: 2 },
+      { category: "Travel", total: 50, count: 1 },
+    ]));
+  it("summary skips empty categories", () => expect(summarizeByCategory([])).toEqual([]));
 });

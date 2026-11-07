@@ -2,18 +2,35 @@ import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 import { validateExpense } from "@/lib/expenses";
 
-// GET /api/expenses            -> all expenses, newest first
-// GET /api/expenses?category=Food -> only that category (release 2)
+// GET /api/expenses                 -> all expenses, newest first
+// GET /api/expenses?category=Food   -> only that category (release 2)
+// GET /api/expenses?q=lun&sort=amount-desc -> search by title + sort (release 3)
+const ORDERS: Record<string, string> = {
+  "date-desc": "date DESC, id DESC",
+  "amount-desc": "amount DESC, id DESC",
+  "amount-asc": "amount ASC, id ASC",
+};
+
 export async function GET(request: Request) {
-  const category = new URL(request.url).searchParams.get("category");
-  const result = category
-    ? await pool.query(
-        "SELECT id, title, amount, category, date FROM expenses WHERE category = $1 ORDER BY date DESC, id DESC",
-        [category]
-      )
-    : await pool.query(
-        "SELECT id, title, amount, category, date FROM expenses ORDER BY date DESC, id DESC"
-      );
+  const params = new URL(request.url).searchParams;
+  const category = params.get("category");
+  const q = params.get("q");
+  const sort = params.get("sort") ?? "date-desc";
+  if (!ORDERS[sort]) {
+    return NextResponse.json({ error: "Invalid sort" }, { status: 400 });
+  }
+
+  // Build the WHERE part only from fixed text; values go in as $1,$2 placeholders
+  const where: string[] = [];
+  const values: string[] = [];
+  if (category) { values.push(category); where.push(`category = $${values.length}`); }
+  if (q) { values.push(`%${q}%`); where.push(`title ILIKE $${values.length}`); }
+
+  const sql =
+    "SELECT id, title, amount, category, date FROM expenses" +
+    (where.length ? " WHERE " + where.join(" AND ") : "") +
+    " ORDER BY " + ORDERS[sort];
+  const result = await pool.query(sql, values);
   return NextResponse.json(result.rows);
 }
 

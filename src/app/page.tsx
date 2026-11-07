@@ -1,7 +1,10 @@
 "use client"; // this page runs in the browser (needed for state + clicks)
 
 import { useEffect, useState } from "react";
-import { CATEGORIES, calculateTotal, filterByCategory, type Expense } from "@/lib/expenses";
+import {
+  CATEGORIES, calculateTotal, filterByCategory, searchExpenses, sortExpenses, summarizeByCategory,
+  type Expense, type SortOption,
+} from "@/lib/expenses";
 
 export default function Home() {
   // state = data the page remembers; changing it re-draws the page
@@ -18,6 +21,8 @@ export default function Home() {
   const [editCategory, setEditCategory] = useState("Food");
   const [editDate, setEditDate] = useState("");
   const [editError, setEditError] = useState("");
+  const [search, setSearch] = useState(""); // release 3: search by title
+  const [sort, setSort] = useState<SortOption>("date-desc"); // release 3: sort order
 
   // Ask the API for all expenses and store them in state
   async function loadExpenses() {
@@ -93,13 +98,15 @@ export default function Home() {
   }
 
   // Only the rows that match the selected filter; total follows the filter
-  const visible = filterByCategory(expenses, filter);
+  const visible = sortExpenses(searchExpenses(filterByCategory(expenses, filter), search), sort);
   const total = calculateTotal(visible);
+  // Release 3: per-category summary of ALL expenses (not affected by filter/search)
+  const summary = summarizeByCategory(expenses);
 
   // data-testid = fixed names your Playwright tests will use to find elements
   return (
     <main style={{ maxWidth: 600, margin: "40px auto", fontFamily: "sans-serif" }}>
-      <h1>Expense Tracker v2</h1>
+      <h1>Expense Tracker v3</h1>
 
       <form onSubmit={addExpense} data-testid="expense-form">
         <input data-testid="title-input" placeholder="Title" value={title}
@@ -125,11 +132,33 @@ export default function Home() {
         </select>
       </label>
 
+      <input data-testid="search-input" placeholder="Search title" value={search}
+        onChange={(e) => setSearch(e.target.value)} />{" "}
+      <select data-testid="sort-select" value={sort} onChange={(e) => setSort(e.target.value as SortOption)}>
+        <option value="date-desc">Newest first</option>
+        <option value="amount-desc">Amount: high to low</option>
+        <option value="amount-asc">Amount: low to high</option>
+      </select>
+
       <h2>Total: <span data-testid="total">{total}</span></h2>
       <p>Count: <span data-testid="expense-count">{visible.length}</span></p>
 
+      {summary.length > 0 && (
+        <section data-testid="summary">
+          <h3>Summary by category</h3>
+          <ul>
+            {summary.map((s) => (
+              <li key={s.category} data-testid="summary-item">
+                <span data-testid="summary-category">{s.category}</span>:{" "}
+                <span data-testid="summary-total">{s.total}</span> ({s.count})
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {visible.length === 0 ? (
-        <p data-testid="empty-message">No expenses yet</p>
+        <p data-testid="empty-message">{expenses.length === 0 ? "No expenses yet" : "No matching expenses"}</p>
       ) : (
         <ul data-testid="expense-list">
           {visible.map((x) =>
