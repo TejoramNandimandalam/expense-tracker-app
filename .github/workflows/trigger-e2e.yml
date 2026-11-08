@@ -1,0 +1,32 @@
+# When Vercel finishes deploying the qa branch, start the e2e tests in the e2e repo.
+name: Trigger e2e tests
+
+on:
+  # Vercel reports every finished deployment to GitHub as a "deployment_status" event
+  deployment_status:
+
+jobs:
+  trigger-e2e:
+    # Only for a successful deployment of the qa branch
+    if: github.event.deployment_status.state == 'success' && github.event.deployment.ref == 'qa'
+    runs-on: ubuntu-latest
+    steps:
+      # Get the code that was deployed, so we can read its version
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.deployment.sha }}
+
+      - name: Work out the release number from package.json (4.0.0 -> 4)
+        id: release
+        run: echo "number=$(node -p "require('./package.json').version.split('.')[0]")" >> "$GITHUB_OUTPUT"
+
+      - name: Ask the e2e repo to run all tests on qa
+        env:
+          # A GitHub token that is allowed to start workflows in the e2e repo (stored as a secret)
+          E2E_DISPATCH_TOKEN: ${{ secrets.E2E_DISPATCH_TOKEN }}
+        run: |
+          curl --fail-with-body -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $E2E_DISPATCH_TOKEN" \
+            https://api.github.com/repos/TejoramNandimandalam/expense-tracker-e2e/dispatches \
+            -d '{"event_type":"deployment-finished","client_payload":{"env":"qa","suite":"all","release":"${{ steps.release.outputs.number }}"}}'
