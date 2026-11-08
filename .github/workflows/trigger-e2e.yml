@@ -1,47 +1,38 @@
-# When Vercel finishes deploying the qa branch, start the e2e tests in the e2e repo.
+# After a push to the qa branch: wait until qa is running that commit, then start all e2e tests.
 name: Trigger e2e tests
 
 on:
-  # Vercel reports every finished deployment to GitHub as a "deployment_status" event
-  deployment_status:
+  push:
+    branches: [qa]
 
 jobs:
   trigger-e2e:
-    # Only successful deployments (Vercel also sends "pending" and "in_progress" events)
-    if: github.event.deployment_status.state == 'success'
     runs-on: ubuntu-latest
     steps:
-      # Print what Vercel sent, so we can see exactly how the qa deployment is described
-      - name: Show the deployment details
-        run: |
-          echo "ref:         ${{ github.event.deployment.ref }}"
-          echo "environment: ${{ github.event.deployment.environment }}"
-          echo "sha:         ${{ github.event.deployment.sha }}"
-          echo "target_url:  ${{ github.event.deployment_status.target_url }}"
-          echo "env_url:     ${{ github.event.deployment_status.environment_url }}"
-
-      - name: Is this the qa deployment?
-        id: check
-        run: |
-          if [ "${{ github.event.deployment.ref }}" = "qa" ] || [ "${{ github.event.deployment.ref }}" = "refs/heads/qa" ]; then
-            echo "is_qa=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "is_qa=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      # Get the code that was deployed, so we can read its version
       - uses: actions/checkout@v4
-        if: steps.check.outputs.is_qa == 'true'
-        with:
-          ref: ${{ github.event.deployment.sha }}
 
       - name: Work out the release number from package.json (4.0.0 -> 4)
-        if: steps.check.outputs.is_qa == 'true'
         id: release
         run: echo "number=$(node -p "require('./package.json').version.split('.')[0]")" >> "$GITHUB_OUTPUT"
 
+      # Vercel needs about a minute to build. Ask /api/health which commit qa is running
+      # and wait until it is the commit that was just pushed.
+      - name: Wait until qa is running this commit
+        env:
+          # lets this check through Vercel's login wall (stored as a secret)
+          VERCEL_BYPASS_SECRET: ${{ secrets.VERCEL_BYPASS_SECRET }}
+        run: |
+          URL="https://expense-tracker-app-git-qa-expense-tracker-6a12.vercel.app/api/health"
+          for i in $(seq 1 60); do
+            COMMIT=$(curl -s -H "x-vercel-protection-bypass: $VERCEL_BYPASS_SECRET" "$URL" | jq -r '.commit // empty' 2>/dev/null || true)
+            echo "attempt $i: qa is running '${COMMIT}', waiting for '${GITHUB_SHA}'"
+            if [ "$COMMIT" = "$GITHUB_SHA" ]; then exit 0; fi
+            sleep 10
+          done
+          echo "qa did not start running this commit within 10 minutes"
+          exit 1
+
       - name: Ask the e2e repo to run all tests on qa
-        if: steps.check.outputs.is_qa == 'true'
         env:
           # A GitHub token that is allowed to start workflows in the e2e repo (stored as a secret)
           E2E_DISPATCH_TOKEN: ${{ secrets.E2E_DISPATCH_TOKEN }}
