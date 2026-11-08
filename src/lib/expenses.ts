@@ -89,3 +89,21 @@ export function summarizeByCategory(expenses: Expense[]) {
     return { category, total: calculateTotal(rows), count: rows.length };
   }).filter((s) => s.count > 0);
 }
+
+// ---------- Release 4 ----------
+
+// Wrap a value in quotes if it contains a comma, quote or new line (CSV rule).
+// A quote inside the value is written twice: He said "hi" -> "He said ""hi"""
+export function escapeCsv(value: string | number): string {
+  const text = String(value);
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+// Turn the list into CSV text: a header line, then one line per expense
+export function toCsv(expenses: Expense[]): string {
+  const header = "id,title,amount,category,date";
+  const lines = expenses.map((x) =>
+    [x.id, x.title, x.amount, x.category, x.date].map(escapeCsv).join(",")
+  );
+  return [header, ...lines].join("\n");
+}

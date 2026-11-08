@@ -1,3 +1,5 @@
+import "./globals.css"; // release 4: the new look
+
 // Title shown on the browser tab
 export const metadata = { title: "Expense Tracker" };
 

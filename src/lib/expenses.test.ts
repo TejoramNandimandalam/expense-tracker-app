@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculateTotal, hasAllFields, validateExpense, filterByCategory, searchExpenses, sortExpenses, summarizeByCategory } from "./expenses";
+import { calculateTotal, hasAllFields, validateExpense, filterByCategory, searchExpenses, sortExpenses, summarizeByCategory, escapeCsv, toCsv } from "./expenses";
 
 // describe = a group of tests, it = one test, expect = the check
 describe("calculateTotal", () => {
@@ -84,4 +84,16 @@ describe("release 3 helpers", () => {
       { category: "Travel", total: 50, count: 1 },
     ]));
   it("summary skips empty categories", () => expect(summarizeByCategory([])).toEqual([]));
+});
+
+describe("CSV export (release 4)", () => {
+  it("leaves plain text as it is", () => expect(escapeCsv("Lunch")).toBe("Lunch"));
+  it("quotes text that contains a comma", () => expect(escapeCsv("Tea, biscuits")).toBe('"Tea, biscuits"'));
+  it("doubles quotes inside the text", () => expect(escapeCsv('The "best" tea')).toBe('"The ""best"" tea"'));
+  it("quotes text that contains a new line", () => expect(escapeCsv("a\nb")).toBe('"a\nb"'));
+  it("gives only the header for an empty list", () => expect(toCsv([])).toBe("id,title,amount,category,date"));
+  it("writes one line per expense", () =>
+    expect(toCsv([{ id: 1, title: "Lunch", amount: 250.5, category: "Food", date: "2026-10-06" }])).toBe(
+      "id,title,amount,category,date\n1,Lunch,250.5,Food,2026-10-06"
+    ));
 });
