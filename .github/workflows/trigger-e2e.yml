@@ -7,20 +7,41 @@ on:
 
 jobs:
   trigger-e2e:
-    # Only for a successful deployment of the qa branch
-    if: github.event.deployment_status.state == 'success' && github.event.deployment.ref == 'qa'
+    # Only successful deployments (Vercel also sends "pending" and "in_progress" events)
+    if: github.event.deployment_status.state == 'success'
     runs-on: ubuntu-latest
     steps:
+      # Print what Vercel sent, so we can see exactly how the qa deployment is described
+      - name: Show the deployment details
+        run: |
+          echo "ref:         ${{ github.event.deployment.ref }}"
+          echo "environment: ${{ github.event.deployment.environment }}"
+          echo "sha:         ${{ github.event.deployment.sha }}"
+          echo "target_url:  ${{ github.event.deployment_status.target_url }}"
+          echo "env_url:     ${{ github.event.deployment_status.environment_url }}"
+
+      - name: Is this the qa deployment?
+        id: check
+        run: |
+          if [ "${{ github.event.deployment.ref }}" = "qa" ] || [ "${{ github.event.deployment.ref }}" = "refs/heads/qa" ]; then
+            echo "is_qa=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_qa=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # Get the code that was deployed, so we can read its version
       - uses: actions/checkout@v4
+        if: steps.check.outputs.is_qa == 'true'
         with:
           ref: ${{ github.event.deployment.sha }}
 
       - name: Work out the release number from package.json (4.0.0 -> 4)
+        if: steps.check.outputs.is_qa == 'true'
         id: release
         run: echo "number=$(node -p "require('./package.json').version.split('.')[0]")" >> "$GITHUB_OUTPUT"
 
       - name: Ask the e2e repo to run all tests on qa
+        if: steps.check.outputs.is_qa == 'true'
         env:
           # A GitHub token that is allowed to start workflows in the e2e repo (stored as a secret)
           E2E_DISPATCH_TOKEN: ${{ secrets.E2E_DISPATCH_TOKEN }}
